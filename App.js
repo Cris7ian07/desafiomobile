@@ -1,19 +1,17 @@
 import { useState } from "react";
-import { StyleSheet, Text, View, Button, Vibration, Linking, Alert } from "react-native";
+import { StyleSheet, Text, View, Button, Vibration, Linking, Alert, TouchableOpacity } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 
-export default function App() {
+export default function App({ navigation }) {
   const [permission, requestPermission] = useCameraPermissions();
   const [conteudoQRCode, setConteudoQRCode] = useState("");
   const [escaneado, setEscaneado] = useState(false);
-  
-  
   const [corDeFundo, setCorDeFundo] = useState("#f2f2f2");
 
   if (!permission) {
     return (
       <View style={styles.container}>
-        <Text>Carregando permissões...</Text>
+        <Text style={styles.texto}>Carregando permissões...</Text>
       </View>
     );
   }
@@ -29,23 +27,23 @@ export default function App() {
     );
   }
 
-  
   function lerQRCode({ data }) {
     setEscaneado(true);
     setConteudoQRCode(data);
 
-  
+    
     if (data.startsWith("COLOR:")) {
       const cor = data.replace("COLOR:", "").trim().toLowerCase();
       setCorDeFundo(cor);
     }
 
-   
+  
     else if (data === "VIBRAR") {
-      Vibration.vibrate(100); 
+      
+      Vibration.vibrate([0, 400, 200, 400]); 
     }
 
-   
+  
     else if (data.startsWith("SITE:")) {
       const url = data.replace("SITE:", "").trim();
       Linking.openURL(url).catch(() => 
@@ -54,12 +52,26 @@ export default function App() {
     }
 
     
+    else if (data.startsWith("TELA:")) {
+      const nomeTela = data.replace("TELA:", "").trim();
+      Alert.alert(
+        "Navegar para Módulo",
+        `Deseja abrir a tela ${nomeTela}?`,
+        [
+          { text: "Cancelar", style: "cancel" },
+          { text: "Confirmar", onPress: () => navigation.navigate(nomeTela) }
+        ]
+      );
+    }
+
+
     else if (data === "VENCEU") {
       setCorDeFundo("gold");
+      Vibration.vibrate(500); 
       Alert.alert("🏆 VITÓRIA!", "Você encontrou o QR Code premiado!");
     }
 
-   
+    
     else if (data.startsWith("MENSAGEM:")) {
       const msg = data.replace("MENSAGEM:", "").trim();
       Alert.alert("QR Code diz:", msg);
@@ -69,11 +81,15 @@ export default function App() {
   function lerNovamente() {
     setEscaneado(false);
     setConteudoQRCode("");
-    setCorDeFundo("#0f0e0e"); 
+    setCorDeFundo("#f2f2f2"); 
+  }
+
+  
+  function testarMotorVibracao() {
+    Vibration.vibrate(600); 
   }
 
   return (
-    
     <View style={[styles.container, { backgroundColor: corDeFundo }]}>
       <Text style={styles.titulo}>QR Code Inteligente</Text>
 
@@ -90,7 +106,6 @@ export default function App() {
 
       <View style={styles.resultado}>
         <Text style={styles.label}>Conteúdo Lido:</Text>
-
         <Text style={styles.conteudo}>
           {conteudoQRCode || "Aguardando leitura..."}
         </Text>
@@ -98,6 +113,11 @@ export default function App() {
         {escaneado && (
           <Button title="Escanear Novo Código" onPress={lerNovamente} color="#1E90FF" />
         )}
+
+        
+        <TouchableOpacity style={styles.botaoTeste} onPress={testarMotorVibracao}>
+          <Text style={styles.textoBotaoTeste}>📳 Testar Vibração do Celular</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -134,10 +154,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   resultado: {
-    backgroundColor: "rgba(174, 216, 20, 0.9)",
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
     padding: 20,
     borderRadius: 15,
-    shadowColor: "#272424",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 5,
@@ -152,8 +172,20 @@ const styles = StyleSheet.create({
   },
   conteudo: {
     fontSize: 18,
-    color: "#dd8484",
+    color: "#333",
     marginBottom: 20,
     fontWeight: "500",
   },
+  botaoTeste: {
+    backgroundColor: "#e2e8f0",
+    padding: 10,
+    borderRadius: 8,
+    marginTop: 12,
+    alignItems: "center"
+  },
+  textoBotaoTeste: {
+    color: "#475569",
+    fontWeight: "600",
+    fontSize: 13
+  }
 });
