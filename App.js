@@ -1,17 +1,41 @@
 import { useState } from "react";
-import { StyleSheet, Text, View, Button, Vibration, Linking, Alert, TouchableOpacity } from "react-native";
+import {
+  StyleSheet,
+  Text,
+  View,
+  Button,
+  Vibration, 
+  Linking, 
+} from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 
-export default function App({ navigation }) {
+export default function App() {
   const [permission, requestPermission] = useCameraPermissions();
   const [conteudoQRCode, setConteudoQRCode] = useState("");
   const [escaneado, setEscaneado] = useState(false);
-  const [corDeFundo, setCorDeFundo] = useState("#f2f2f2");
+
+  
+  const [corFundo, setCorFundo] = useState("#f2f2f2");
+
+  
+  function gerarCorAleatoria() {
+    const cores = [
+      "#ff7c89",
+      "#70eb74",
+      "#88c1f0",
+      "#dbd171",
+      "#e28df1",
+      "#f1b863",
+      "#5bebdf",
+    ];
+
+    return cores[Math.floor(Math.random() * cores.length)];
+  }
 
   if (!permission) {
     return (
       <View style={styles.container}>
-        <Text style={styles.texto}>Carregando permissões...</Text>
+        <Text>Carregando permissões...</Text>
       </View>
     );
   }
@@ -22,76 +46,56 @@ export default function App({ navigation }) {
         <Text style={styles.texto}>
           Precisamos da permissão da câmera para ler o QR Code.
         </Text>
-        <Button title="Permitir câmera" onPress={requestPermission} />
+
+        <Button
+          title="Permitir câmera"
+          onPress={requestPermission}
+        />
       </View>
     );
   }
+  async function lerQRCode({ data }) {
+  
+    Vibration.vibrate(500);
 
-  function lerQRCode({ data }) {
+  
+    setCorFundo(gerarCorAleatoria());
+
     setEscaneado(true);
     setConteudoQRCode(data);
 
     
-    if (data.startsWith("COLOR:")) {
-      const cor = data.replace("COLOR:", "").trim().toLowerCase();
-      setCorDeFundo(cor);
-    }
+    if (
+      data.startsWith("http://") ||
+      data.startsWith("https://")
+    ) {
+      const podeAbrir = await Linking.canOpenURL(data);
 
-  
-    else if (data === "VIBRAR") {
-      
-      Vibration.vibrate([0, 400, 200, 400]); 
-    }
-
-  
-    else if (data.startsWith("SITE:")) {
-      const url = data.replace("SITE:", "").trim();
-      Linking.openURL(url).catch(() => 
-        Alert.alert("Erro", "Não foi possível abrir o site.")
-      );
-    }
-
-    
-    else if (data.startsWith("TELA:")) {
-      const nomeTela = data.replace("TELA:", "").trim();
-      Alert.alert(
-        "Navegar para Módulo",
-        `Deseja abrir a tela ${nomeTela}?`,
-        [
-          { text: "Cancelar", style: "cancel" },
-          { text: "Confirmar", onPress: () => navigation.navigate(nomeTela) }
-        ]
-      );
-    }
-
-
-    else if (data === "VENCEU") {
-      setCorDeFundo("gold");
-      Vibration.vibrate(500); 
-      Alert.alert("🏆 VITÓRIA!", "Você encontrou o QR Code premiado!");
-    }
-
-    
-    else if (data.startsWith("MENSAGEM:")) {
-      const msg = data.replace("MENSAGEM:", "").trim();
-      Alert.alert("QR Code diz:", msg);
+      if (podeAbrir) {
+        await Linking.openURL(data);
+      }
     }
   }
 
   function lerNovamente() {
     setEscaneado(false);
     setConteudoQRCode("");
-    setCorDeFundo("#f2f2f2"); 
-  }
 
-  
-  function testarMotorVibracao() {
-    Vibration.vibrate(600); 
+    
+    setCorFundo("#f2f2f2");
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: corDeFundo }]}>
-      <Text style={styles.titulo}>QR Code Inteligente</Text>
+    
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: corFundo },
+      ]}
+    >
+      <Text style={styles.titulo}>
+        Leitor de QR Code
+      </Text>
 
       <View style={styles.cameraArea}>
         <CameraView
@@ -100,24 +104,40 @@ export default function App({ navigation }) {
           barcodeScannerSettings={{
             barcodeTypes: ["qr"],
           }}
-          onBarcodeScanned={escaneado ? undefined : lerQRCode}
+          onBarcodeScanned={
+            escaneado ? undefined : lerQRCode
+          }
         />
       </View>
 
       <View style={styles.resultado}>
-        <Text style={styles.label}>Conteúdo Lido:</Text>
-        <Text style={styles.conteudo}>
-          {conteudoQRCode || "Aguardando leitura..."}
+        <Text style={styles.label}>
+          Conteúdo do QR Code:
         </Text>
 
-        {escaneado && (
-          <Button title="Escanear Novo Código" onPress={lerNovamente} color="#1E90FF" />
-        )}
+    
+        <Text style={styles.conteudo}>
+          {conteudoQRCode ||
+            "Nenhum QR Code lido ainda."}
+        </Text>
 
         
-        <TouchableOpacity style={styles.botaoTeste} onPress={testarMotorVibracao}>
-          <Text style={styles.textoBotaoTeste}>📳 Testar Vibração do Celular</Text>
-        </TouchableOpacity>
+        {escaneado &&
+          conteudoQRCode.startsWith("http") && (
+            <Button
+              title="Abrir Link"
+              onPress={() =>
+                Linking.openURL(conteudoQRCode)
+              }
+            />
+          )}
+
+        {escaneado && (
+          <Button
+            title="Ler outro QR Code"
+            onPress={lerNovamente}
+          />
+        )}
       </View>
     </View>
   );
@@ -129,63 +149,46 @@ const styles = StyleSheet.create({
     padding: 20,
     justifyContent: "center",
   },
+
   titulo: {
     fontSize: 26,
     fontWeight: "bold",
     textAlign: "center",
     marginBottom: 20,
-    color: "#4c0de0",
   },
+
   texto: {
     fontSize: 18,
     textAlign: "center",
     marginBottom: 20,
   },
+
   cameraArea: {
-    height: 300,
+    height: 350,
     borderRadius: 20,
     overflow: "hidden",
     backgroundColor: "#000",
     marginBottom: 20,
-    borderWidth: 2,
-    borderColor: "#db0e0e"
   },
+
   camera: {
     flex: 1,
   },
+
   resultado: {
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    backgroundColor: "#fff",
     padding: 20,
     borderRadius: 15,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 3,
   },
+
   label: {
-    fontSize: 14,
-    color: "#666",
-    fontWeight: "bold",
-    textTransform: "uppercase",
-    marginBottom: 5,
-  },
-  conteudo: {
     fontSize: 18,
-    color: "#333",
+    fontWeight: "bold",
+    marginBottom: 10,
+  },
+
+  conteudo: {
+    fontSize: 16,
     marginBottom: 20,
-    fontWeight: "500",
   },
-  botaoTeste: {
-    backgroundColor: "#e2e8f0",
-    padding: 10,
-    borderRadius: 8,
-    marginTop: 12,
-    alignItems: "center"
-  },
-  textoBotaoTeste: {
-    color: "#475569",
-    fontWeight: "600",
-    fontSize: 13
-  }
 });
